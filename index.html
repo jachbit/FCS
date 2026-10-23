@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>F.O.C.U.S.© — RAV4 Maintenance Schedule</title>
+<style>
+  :root {
+    --navy:   #002B5C;
+    --orange: #E65C00;
+    --yellow: #fbbf24;
+    --bg:     #0d1b2e;
+    --card:   #0f2340;
+    --border: #1e3a5f;
+    --text:   #e8e8e8;
+    --white:  #e8e8e8;
+    --row-alt: rgba(255,255,255,0.03);
+    --danger: #ef4444;
+    --green:  #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* Header */
+  .header { background: var(--navy); border-bottom: 3px solid var(--orange); padding: 14px 24px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 0.5px; }
+  .brand sup { color: var(--orange); font-size: 12px; }
+  .hdr-subtitle { font-size: 13px; color: var(--white); margin-top: 3px; }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .hdr-credit { font-size: 13px; color: var(--orange); font-weight: 700; }
+  .hdr-time { font-size: 18px; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .5px; margin-top: 1px; }
+  .hdr-date { font-size: 12px; color: #93c5fd; font-weight: 600; }
+
+  .page { max-width: 1200px; margin: 0 auto; padding: 20px 20px 60px; display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .card-title { background: var(--navy); color: var(--orange); font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 10px 14px; border-bottom: 2px solid var(--orange); }
+
+  /* Calendar */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 4px; }
+  .cal-month { font-size: 15px; font-weight: 800; color: #fff; }
+  .cal-btn { background: transparent; border: 1.5px solid #fff; color: #fff; border-radius: 6px; width: 30px; height: 30px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .cal-btn:hover { background: rgba(255,255,255,0.1); }
+  .cal-today { width: auto; padding: 0 10px; font-size: 12px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 8px 10px 12px; }
+  .cal-dow { text-align: center; font-size: 12px; font-weight: 800; color: var(--orange); padding: 4px 0; }
+  .cal-day { position: relative; text-align: center; font-size: 13px; font-weight: 700; color: var(--white); padding: 8px 0 12px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-variant-numeric: tabular-nums; }
+  .cal-day:hover { border-color: var(--orange); }
+  .cal-day.other { opacity: 0.45; }
+  .cal-day.today { border-color: #93c5fd; }
+  .cal-day.has { background: rgba(230,92,0,0.22); color: #fff; }
+  .cal-day.selected { background: var(--orange); color: #fff; }
+  .cal-dot { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 800; color: var(--yellow); line-height: 1; }
+  .cal-day.selected .cal-dot { color: #fff; }
+
+  .day-panel { border-top: 1px solid var(--border); padding: 12px 14px 14px; }
+  .day-panel-title { font-size: 13px; font-weight: 800; color: var(--orange); margin-bottom: 8px; }
+  .day-entry { font-size: 13px; color: var(--white); padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; }
+  .day-entry:hover { border-color: var(--orange); }
+  .day-entry b { color: var(--yellow); }
+  .day-empty { font-size: 13px; color: var(--white); margin-bottom: 8px; }
+
+  .stats { border-top: 1px solid var(--border); padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-k { font-size: 12px; font-weight: 700; color: var(--white); }
+  .stat-v { font-size: 18px; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; }
+
+  /* Sheet */
+  .sheet-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .sheet-title { flex: 1 1 360px; font-size: 18px; font-weight: 800; color: #fff; }
+  .sheet-date-wrap { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--white); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 760px; }
+  thead th { background: var(--navy); color: #fff; padding: 6px 6px; text-align: left; border-bottom: 2px solid var(--orange); white-space: nowrap; vertical-align: middle; }
+  thead th.num-col { text-align: center; width: 40px; font-size: 12px; }
+  thead th.ctl-col { width: 40px; }
+  .th-inner { display: flex; align-items: center; gap: 2px; }
+  .th-label { font-size: 12px !important; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #fff !important; padding: 5px 6px !important; }
+  .col-del { background: transparent; border: none; color: #fff; font-size: 15px; cursor: pointer; padding: 0 4px; line-height: 1; border-radius: 4px; }
+  .col-del:hover { color: var(--danger); background: rgba(239,68,68,0.15); }
+  .add-col-btn { background: transparent; border: 1.5px dashed #fff; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 800; padding: 5px 8px; cursor: pointer; white-space: nowrap; }
+  .add-col-btn:hover { border-style: solid; border-color: var(--orange); color: var(--orange); }
+
+  tbody td { padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+  tbody tr:nth-child(even) { background: var(--row-alt); }
+  tbody tr:hover { background: rgba(230,92,0,0.06); }
+  tbody tr.flash { animation: flash 1.6s ease-out; }
+  @keyframes flash { 0% { background: rgba(230,92,0,0.45); } 100% { background: transparent; } }
+
+  .num { text-align: center; color: var(--white); font-weight: 700; font-size: 13px; padding-top: 13px !important; font-variant-numeric: tabular-nums; }
+  .day-cell { font-weight: 800; color: var(--yellow); padding-top: 13px !important; text-align: center; width: 60px; }
+  .dur-cell { font-weight: 700; color: var(--yellow); padding-top: 13px !important; white-space: nowrap; }
+
+  input, select, textarea {
+    width: 100%; background: transparent; border: 1px solid transparent; border-radius: 5px;
+    padding: 7px 8px; font-size: 14px; color: var(--text); font-family: inherit;
+  }
+  input[type="date"], input[type="time"] { min-width: 130px; color-scheme: dark; font-variant-numeric: tabular-nums; }
+  input[type="number"] { min-width: 80px; }
+  textarea { resize: vertical; min-height: 36px; min-width: 260px; line-height: 1.35; }
+  input:hover, textarea:hover, select:hover { border-color: var(--border); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--orange); background: rgba(255,255,255,0.04); }
+  ::placeholder { color: #94a3b8; }
+  select option { color: #14213d; background: #fff; }
+
+  .del-btn {
+    display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-top: 3px;
+    border-radius: 6px; border: 1px solid transparent; background: transparent; color: #fff;
+    cursor: pointer; font-size: 17px; line-height: 1;
+  }
+  .del-btn:hover { background: rgba(239,68,68,0.15); color: var(--danger); border-color: var(--danger); }
+
+  .add-row { padding: 12px 16px; display: flex; gap: 10px; }
+  .add-btn {
+    flex: 1; padding: 11px; border: 1.5px dashed var(--border); border-radius: 6px;
+    background: transparent; color: var(--orange); font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .add-btn:hover { background: rgba(230,92,0,0.1); border-style: solid; border-color: var(--orange); }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--navy); font-size: 13px; color: var(--white); font-weight: 700; gap: 12px; flex-wrap: wrap; }
+  .toolbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tb-btn {
+    display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1.5px solid #fff;
+    color: #fff; font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 6px; cursor: pointer;
+  }
+  .tb-btn:hover { background: rgba(255,255,255,0.1); }
+  .tb-btn.accent { border-color: var(--orange); color: var(--orange); }
+  .tb-btn.accent:hover { background: rgba(230,92,0,0.12); }
+  .tb-btn.danger { border-color: var(--danger); color: var(--danger); }
+  .tb-btn.danger:hover { background: rgba(239,68,68,0.12); }
+
+  /* Add-column dialog */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--orange); border-radius: 8px; width: 100%; max-width: 360px; overflow: hidden; }
+  .modal-body { padding: 14px; display: grid; gap: 10px; }
+  .modal-body label { font-size: 12px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: .5px; }
+  .modal-body input, .modal-body select { border: 1px solid var(--border); margin-top: 4px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 0 14px 14px; }
+
+  footer.site-footer { text-align: center; padding: 20px; font-size: 12px; color: var(--white); }
+  footer.site-footer a { color: var(--orange); font-weight: 700; text-decoration: none; }
+  footer.site-footer a:hover { text-decoration: underline; }
+
+  /* Below this width the sheet would be too narrow for Notes beside the calendar. */
+  @media (max-width: 1100px) {
+    .page { grid-template-columns: 1fr; padding: 16px 16px 50px; }
+    aside.card { max-width: 420px; width: 100%; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div class="brand">F.O.C.U.S.<sup>&copy;</sup> — RAV4 Maintenance Schedule</div>
+      <div class="hdr-subtitle">Useability, engine &amp; battery log — pick dates on the calendar, add rows &amp; columns as needed</div>
+    </div>
+    <div class="header-right">
+      <div class="hdr-credit">Jachbit 2026</div>
+      <div class="hdr-time" id="hdrTime"></div>
+      <div class="hdr-date" id="hdrDate"></div>
+    </div>
+  </div>
+
+  <div class="page">
+    <aside class="card">
+      <div class="card-title">Calendar</div>
+      <div class="cal-nav">
+        <button class="cal-btn" id="calPrev" title="Previous month">&lsaquo;</button>
+        <div class="cal-month" id="calMonth"></div>
+        <div style="display:flex;gap:6px">
+          <button class="cal-btn cal-today" id="calToday" title="Jump to today">Today</button>
+          <button class="cal-btn" id="calNext" title="Next month">&rsaquo;</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="day-panel" id="dayPanel"></div>
+      <div class="stats">
+        <div><div class="stat-k">Entries</div><div class="stat-v" id="statRows">0</div></div>
+        <div><div class="stat-k">Logged hours</div><div class="stat-v" id="statHours">0.0</div></div>
+        <div><div class="stat-k">Last entry</div><div class="stat-v" id="statLast" style="font-size:14px">—</div></div>
+        <div><div class="stat-k">Days since</div><div class="stat-v" id="statSince">—</div></div>
+      </div>
+    </aside>
+
+    <main class="card">
+      <div class="sheet-head">
+        <input class="sheet-title" id="sheetTitle" type="text" placeholder="Schedule title" />
+        <label class="sheet-date-wrap">Sheet date <input type="date" id="sheetDate" style="width:auto" /></label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="headRow"></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="add-row">
+        <button class="add-btn" id="addBtn">&#43; Add row (today)</button>
+        <button class="add-btn" id="sortBtn" style="flex:0 0 auto;padding:11px 16px">Sort by date</button>
+      </div>
+      <div class="toolbar">
+        <span id="rowCount">0 rows</span>
+        <div class="toolbar-actions">
+          <button class="tb-btn accent" id="pdfBtn">&#128196; Export PDF</button>
+          <button class="tb-btn" id="csvBtn">Export CSV</button>
+          <button class="tb-btn" id="csvImportBtn">Import CSV</button>
+          <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none" />
+          <button class="tb-btn danger" id="clearBtn">Clear all rows</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-bg" id="colModal">
+    <div class="modal">
+      <div class="card-title">Add column</div>
+      <div class="modal-body">
+        <label>Column name<input type="text" id="newColName" placeholder="e.g. Mileage" /></label>
+        <label>Type
+          <select id="newColType">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="date">Date (calendar)</option>
+            <option value="time">Time</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="tb-btn" id="colCancel">Cancel</button>
+        <button class="tb-btn accent" id="colAdd">Add column</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    &copy; 2026 Jachbit. All rights reserved. &middot; <a href="https://linktr.ee/jachbit" target="_blank" rel="noopener">linktr.ee/jachbit</a>
+  </footer>
+
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/jspdf.plugin.autotable.min.js"></script>
+<script>
+(function () {
+  var STORAGE_KEY = "focus-rav4-schedule-v1";
+  var DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  // Built-in columns carry a fixed `key` so the calendar, Day and Hours logic can find them
+  // even after the user renames the header.
+  function defaultState() {
+    var rows = [
+      ["2023-04-30", "15:00", "20:00", "re-install battery, remove dust, re-start engine (one time start), warm-up engine for an hour drove to victory/woodley, reseda and de-sotto with Mahal"],
+      ["2023-05-02", "", "", "CHA, start engine after work"],
+      ["2023-05-03", "", "", "CHA, start engine after work"],
+      ["2023-05-04", "", "", "CHA, start engine after work"],
+      ["2023-05-07", "15:20", "16:30", "to Balboa Park"],
+      ["2023-05-09", "07:50", "08:00", "Start Engine early with CHA"]
+    ];
+    return {
+      title: "RAV4  Useability, Engine and Battery Maintenance Schedule",
+      sheetDate: "2023-05-01",
+      nextId: 100,
+      columns: [
+        { id: "c1", key: "date", label: "Date", type: "date" },
+        { id: "c2", key: "day", label: "Day", type: "day" },
+        { id: "c3", key: "start", label: "Time Start", type: "time" },
+        { id: "c4", key: "end", label: "Time End", type: "time" },
+        { id: "c5", key: "hours", label: "Hours", type: "hours" },
+        { id: "c6", key: "notes", label: "Notes", type: "notes" }
+      ],
+      rows: rows.map(function (r, i) {
+        return { id: "r" + (i + 1), cells: { c1: r[0], c3: r[1], c4: r[2], c6: r[3] } };
+      })
+    };
+  }
+
+  var state = load();
+  var calCursor = null;   // first day of the month being shown
+  var selectedDate = null;
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return defaultState();
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function newId(prefix) { return prefix + (state.nextId++); }
+
+  function colByKey(key) {
+    for (var i = 0; i < state.columns.length; i++) if (state.columns[i].key === key) return state.columns[i];
+    return null;
+  }
+  function cell(row, key) {
+    var c = colByKey(key);
+    return c ? (row.cells[c.id] || "") : "";
+  }
+
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function isoOf(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function parseIso(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  function dayOf(iso) { var d = parseIso(iso); return d ? DOW[d.getDay()] : ""; }
+  function compactDate(iso) { return (iso || "").replace(/-/g, ""); }
+  function time12(t) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(t || "");
+    if (!m) return "";
+    var h = +m[1], ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + m[2] + " " + ap;
+  }
+  function minutes(t) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(t || "");
+    return m ? +m[1] * 60 + +m[2] : null;
+  }
+  function hoursOf(row) {
+    var a = minutes(cell(row, "start")), b = minutes(cell(row, "end"));
+    if (a === null || b === null) return null;
+    if (b < a) b += 24 * 60;
+    return (b - a) / 60;
+  }
+  function hoursText(row) { var h = hoursOf(row); return h === null ? "" : h.toFixed(2); }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---------- Sheet ----------
+  var headRow = document.getElementById("headRow");
+  var rowsEl = document.getElementById("rows");
+
+  function renderHead() {
+    var html = '<th class="num-col">#</th>';
+    state.columns.forEach(function (c) {
+      html += '<th data-col="' + c.id + '"><div class="th-inner">' +
+        '<input class="th-label" type="text" value="' + escapeHtml(c.label) + '" title="Click to rename column" />' +
+        (c.key === "date" ? "" : '<button class="col-del" title="Remove column">&times;</button>') +
+        '</div></th>';
+    });
+    html += '<th class="ctl-col"><button class="add-col-btn" id="addColBtn" title="Add a column">+ Col</button></th>';
+    headRow.innerHTML = html;
+
+    headRow.querySelectorAll("th[data-col]").forEach(function (th) {
+      var col = state.columns.filter(function (c) { return c.id === th.getAttribute("data-col"); })[0];
+      var lbl = th.querySelector(".th-label");
+      lbl.style.width = Math.max(6, col.label.length + 2) + "ch";
+      lbl.addEventListener("input", function () { col.label = lbl.value; lbl.style.width = Math.max(6, lbl.value.length + 2) + "ch"; save(); });
+      var del = th.querySelector(".col-del");
+      if (del) del.addEventListener("click", function () {
+        if (!confirm('Remove the "' + col.label + '" column and its data?')) return;
+        state.columns = state.columns.filter(function (c) { return c.id !== col.id; });
+        state.rows.forEach(function (r) { delete r.cells[col.id]; });
+        save(); render();
+      });
+    });
+    document.getElementById("addColBtn").addEventListener("click", openColModal);
+  }
+
+  function buildCell(row, col) {
+    var v = row.cells[col.id] || "";
+    switch (col.type) {
+      case "day":   return '<td class="day-cell" data-auto="day">' + dayOf(cell(row, "date")) + '</td>';
+      case "hours": return '<td class="dur-cell" data-auto="hours">' + hoursText(row) + '</td>';
+      case "notes": return '<td><textarea data-col="' + col.id + '" rows="2" placeholder="Notes">' + escapeHtml(v) + '</textarea></td>';
+      case "date":  return '<td><input type="date" data-col="' + col.id + '" value="' + escapeHtml(v) + '" /></td>';
+      case "time":  return '<td><input type="time" data-col="' + col.id + '" value="' + escapeHtml(v) + '" /></td>';
+      case "number":return '<td><input type="number" step="any" data-col="' + col.id + '" value="' + escapeHtml(v) + '" /></td>';
+      default:      return '<td><input type="text" data-col="' + col.id + '" value="' + escapeHtml(v) + '" /></td>';
+    }
+  }
+
+  function autosize(ta) { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + 2 + "px"; }
+
+  function buildRow(row, idx) {
+    var tr = document.createElement("tr");
+    tr.setAttribute("data-row", row.id);
+    var html = '<td class="num">' + (idx + 1) + '</td>';
+    state.columns.forEach(function (c) { html += buildCell(row, c); });
+    html += '<td><button class="del-btn" title="Remove row">&times;</button></td>';
+    tr.innerHTML = html;
+
+    // Edits update state in place; rebuilding the row while typing would reset the caret.
+    tr.querySelectorAll("[data-col]").forEach(function (el) {
+      var colId = el.getAttribute("data-col");
+      var col = state.columns.filter(function (c) { return c.id === colId; })[0];
+      el.addEventListener("input", function () {
+        row.cells[colId] = el.value;
+        save();
+        if (el.tagName === "TEXTAREA") autosize(el);
+        if (col.key === "date") {
+          var dc = tr.querySelector('[data-auto="day"]');
+          if (dc) dc.textContent = dayOf(el.value);
+          renderCalendar();
+        }
+        if (col.key === "start" || col.key === "end") {
+          var hc = tr.querySelector('[data-auto="hours"]');
+          if (hc) hc.textContent = hoursText(row);
+        }
+        renderStats();
+      });
+    });
+    tr.querySelector(".del-btn").addEventListener("click", function () {
+      state.rows = state.rows.filter(function (r) { return r.id !== row.id; });
+      save(); render();
+    });
+    return tr;
+  }
+
+  function renderRows() {
+    rowsEl.innerHTML = "";
+    state.rows.forEach(function (r, i) { rowsEl.appendChild(buildRow(r, i)); });
+    rowsEl.querySelectorAll("textarea").forEach(autosize);
+    document.getElementById("rowCount").textContent = state.rows.length + (state.rows.length === 1 ? " row" : " rows");
+  }
+
+  function addRow(iso) {
+    var r = { id: newId("r"), cells: {} };
+    var dc = colByKey("date");
+    if (dc) r.cells[dc.id] = iso;
+    state.rows.push(r);
+    save(); render();
+    focusRow(r.id);
+  }
+
+  function focusRow(id) {
+    var tr = rowsEl.querySelector('tr[data-row="' + id + '"]');
+    if (!tr) return;
+    tr.scrollIntoView({ behavior: "smooth", block: "center" });
+    tr.classList.remove("flash"); void tr.offsetWidth; tr.classList.add("flash");
+  }
+
+  // ---------- Calendar ----------
+  function rowsOn(iso) { return state.rows.filter(function (r) { return cell(r, "date") === iso; }); }
+
+  function renderCalendar() {
+    var grid = document.getElementById("calGrid");
+    var y = calCursor.getFullYear(), m = calCursor.getMonth();
+    document.getElementById("calMonth").textContent = MONTHS[m] + " " + y;
+    var counts = {};
+    state.rows.forEach(function (r) { var d = cell(r, "date"); if (d) counts[d] = (counts[d] || 0) + 1; });
+    var todayIso = isoOf(new Date());
+    var start = new Date(y, m, 1 - new Date(y, m, 1).getDay());
+    var html = "";
+    DOW.forEach(function (d) { html += '<div class="cal-dow">' + d.charAt(0) + d.slice(1).toLowerCase() + '</div>'; });
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var iso = isoOf(d);
+      var cls = "cal-day" + (d.getMonth() !== m ? " other" : "") + (iso === todayIso ? " today" : "") +
+        (counts[iso] ? " has" : "") + (iso === selectedDate ? " selected" : "");
+      html += '<div class="' + cls + '" data-iso="' + iso + '" title="' + iso + '">' + d.getDate() +
+        (counts[iso] ? '<span class="cal-dot">' + (counts[iso] > 1 ? counts[iso] : "&bull;") + '</span>' : "") + '</div>';
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll(".cal-day").forEach(function (el) {
+      el.addEventListener("click", function () {
+        selectedDate = el.getAttribute("data-iso");
+        var sd = parseIso(selectedDate);
+        if (sd.getMonth() !== calCursor.getMonth()) calCursor = new Date(sd.getFullYear(), sd.getMonth(), 1);
+        renderCalendar();
+        var hits = rowsOn(selectedDate);
+        if (hits.length) focusRow(hits[0].id);
+      });
+    });
+    renderDayPanel();
+  }
+
+  function renderDayPanel() {
+    var panel = document.getElementById("dayPanel");
+    if (!selectedDate) {
+      panel.innerHTML = '<div class="day-empty">Click a day to see its entries or add one.</div>';
+      return;
+    }
+    var hits = rowsOn(selectedDate);
+    var html = '<div class="day-panel-title">' + dayOf(selectedDate) + " " + selectedDate + '</div>';
+    if (!hits.length) html += '<div class="day-empty">No entries on this day.</div>';
+    hits.forEach(function (r) {
+      var t = [time12(cell(r, "start")), time12(cell(r, "end"))].filter(Boolean).join(" – ");
+      html += '<div class="day-entry" data-row="' + r.id + '">' + (t ? "<b>" + t + "</b> · " : "") +
+        escapeHtml(cell(r, "notes") || "(no notes)") + '</div>';
+    });
+    html += '<button class="add-btn" id="addOnDay" style="width:100%">+ Add entry on this date</button>';
+    panel.innerHTML = html;
+    panel.querySelectorAll(".day-entry").forEach(function (el) {
+      el.addEventListener("click", function () { focusRow(el.getAttribute("data-row")); });
+    });
+    document.getElementById("addOnDay").addEventListener("click", function () { addRow(selectedDate); });
+  }
+
+  function renderStats() {
+    var total = 0, last = "";
+    state.rows.forEach(function (r) {
+      var h = hoursOf(r); if (h) total += h;
+      var d = cell(r, "date"); if (d > last) last = d;
+    });
+    document.getElementById("statRows").textContent = state.rows.length;
+    document.getElementById("statHours").textContent = total.toFixed(1);
+    document.getElementById("statLast").textContent = last ? dayOf(last) + " " + last : "—";
+    var ld = parseIso(last);
+    var t = new Date(); t = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+    document.getElementById("statSince").textContent = ld ? Math.round((t - ld) / 86400000) : "—";
+  }
+
+  function render() {
+    renderHead();
+    renderRows();
+    renderCalendar();
+    renderStats();
+  }
+
+  // ---------- Column dialog ----------
+  var modal = document.getElementById("colModal");
+  function openColModal() {
+    document.getElementById("newColName").value = "";
+    document.getElementById("newColType").value = "text";
+    modal.classList.add("open");
+    document.getElementById("newColName").focus();
+  }
+  document.getElementById("colCancel").addEventListener("click", function () { modal.classList.remove("open"); });
+  modal.addEventListener("click", function (e) { if (e.target === modal) modal.classList.remove("open"); });
+  document.getElementById("newColName").addEventListener("keydown", function (e) { if (e.key === "Enter") document.getElementById("colAdd").click(); });
+  document.getElementById("colAdd").addEventListener("click", function () {
+    var name = document.getElementById("newColName").value.trim();
+    if (!name) { document.getElementById("newColName").focus(); return; }
+    var col = { id: newId("c"), key: "", label: name, type: document.getElementById("newColType").value };
+    // Keep Notes as the last (widest) column.
+    var notesIdx = state.columns.indexOf(colByKey("notes"));
+    if (notesIdx === -1) state.columns.push(col); else state.columns.splice(notesIdx, 0, col);
+    modal.classList.remove("open");
+    save(); render();
+  });
+
+  // ---------- Toolbar ----------
+  document.getElementById("addBtn").addEventListener("click", function () { addRow(isoOf(new Date())); });
+  document.getElementById("sortBtn").addEventListener("click", function () {
+    state.rows.sort(function (a, b) {
+      var da = cell(a, "date") || "9999", db = cell(b, "date") || "9999";
+      return da < db ? -1 : da > db ? 1 : (cell(a, "start") < cell(b, "start") ? -1 : 1);
+    });
+    save(); renderRows();
+  });
+  document.getElementById("clearBtn").addEventListener("click", function () {
+    if (state.rows.length && !confirm("Clear all rows? (Columns and title are kept.)")) return;
+    state.rows = [];
+    save(); render();
+  });
+
+  var titleEl = document.getElementById("sheetTitle");
+  var sheetDateEl = document.getElementById("sheetDate");
+  titleEl.value = state.title;
+  sheetDateEl.value = state.sheetDate || "";
+  titleEl.addEventListener("input", function () { state.title = titleEl.value; save(); });
+  sheetDateEl.addEventListener("input", function () { state.sheetDate = sheetDateEl.value; save(); });
+
+  document.getElementById("calPrev").addEventListener("click", function () { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1); renderCalendar(); });
+  document.getElementById("calNext").addEventListener("click", function () { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1); renderCalendar(); });
+  document.getElementById("calToday").addEventListener("click", function () {
+    var t = new Date(); calCursor = new Date(t.getFullYear(), t.getMonth(), 1); selectedDate = isoOf(t); renderCalendar();
+  });
+
+  // ---------- Export helpers ----------
+  function timestamp() {
+    var d = new Date();
+    return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "_" + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+  function displayValue(row, col, forPdf) {
+    var v = row.cells[col.id] || "";
+    if (col.type === "day") return dayOf(cell(row, "date"));
+    if (col.type === "hours") return hoursText(row);
+    if (col.type === "date") return forPdf ? compactDate(v) : v;
+    if (col.type === "time") return time12(v);
+    return v;
+  }
+  function dateRange() {
+    var ds = state.rows.map(function (r) { return cell(r, "date"); }).filter(Boolean).sort();
+    return ds.length ? compactDate(ds[0]) + " to " + compactDate(ds[ds.length - 1]) : "no dates";
+  }
+
+  // ---------- CSV ----------
+  function csvEsc(s) { s = String(s == null ? "" : s); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+
+  document.getElementById("csvBtn").addEventListener("click", function () {
+    var lines = [state.columns.map(function (c) { return csvEsc(c.label); }).join(",")];
+    state.rows.forEach(function (r) {
+      lines.push(state.columns.map(function (c) { return csvEsc(displayValue(r, c, false)); }).join(","));
+    });
+    var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "FOCUS_RAV4_SCHEDULE_" + timestamp() + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  function parseCsv(text) {
+    var rows = [], row = [], f = "", q = false;
+    text = text.replace(/^﻿/, "");
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (q) {
+        if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+        else f += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ",") { row.push(f); f = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(f); rows.push(row); row = []; f = "";
+      } else f += ch;
+    }
+    if (f || row.length) { row.push(f); rows.push(row); }
+    return rows.filter(function (r) { return r.some(function (c) { return c.trim(); }); });
+  }
+  function normDate(s) {
+    s = (s || "").trim();
+    var m;
+    if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s))) return m[1] + "-" + pad(+m[2]) + "-" + pad(+m[3]);
+    if ((m = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) return m[1] + "-" + m[2] + "-" + m[3];
+    if ((m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s))) return (m[3].length === 2 ? "20" + m[3] : m[3]) + "-" + pad(+m[1]) + "-" + pad(+m[2]);
+    return s;
+  }
+  function normTime(s) {
+    // Accepts 15:00, 3:00 PM, and the original sheet's 3.00PM style.
+    var m = /^(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?$/.exec((s || "").trim());
+    if (!m) return (s || "").trim();
+    var h = +m[1];
+    if (m[3]) { var pm = /p/i.test(m[3]); h = h % 12 + (pm ? 12 : 0); }
+    return pad(h) + ":" + m[2];
+  }
+
+  document.getElementById("csvImportBtn").addEventListener("click", function () { document.getElementById("csvFile").click(); });
+  document.getElementById("csvFile").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = parseCsv(reader.result);
+        if (data.length < 1) { alert("That CSV file is empty."); return; }
+        if (state.rows.length && !confirm("Replace the current " + state.rows.length + " rows with the " + (data.length - 1) + " rows in " + file.name + "?")) return;
+        var header = data[0].map(function (h) { return h.trim(); });
+        var map = header.map(function (h) {
+          var hit = state.columns.filter(function (c) { return c.label.trim().toLowerCase() === h.toLowerCase(); })[0];
+          if (hit) return hit;
+          if (!h) return null;
+          var col = { id: newId("c"), key: "", label: h, type: "text" };
+          var notesIdx = state.columns.indexOf(colByKey("notes"));
+          if (notesIdx === -1) state.columns.push(col); else state.columns.splice(notesIdx, 0, col);
+          return col;
+        });
+        state.rows = data.slice(1).map(function (line) {
+          var r = { id: newId("r"), cells: {} };
+          map.forEach(function (col, i) {
+            if (!col || col.type === "day" || col.type === "hours") return;
+            var v = line[i] || "";
+            if (col.type === "date") v = normDate(v);
+            if (col.type === "time") v = normTime(v);
+            r.cells[col.id] = v;
+          });
+          return r;
+        });
+        save(); render();
+      } catch (err) {
+        alert("CSV import failed: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- PDF ----------
+  document.getElementById("pdfBtn").addEventListener("click", function () {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert("Could not load the PDF library (lib/jspdf.umd.min.js). Make sure the \"lib\" folder was uploaded alongside index.html.");
+      return;
+    }
+    try {
+      buildAndSavePdf();
+    } catch (err) {
+      alert("PDF export failed: " + err.message);
+    }
+  });
+
+  function buildAndSavePdf() {
+    // Colors + layout copied from FOCUS Shopping List, which matches FOCUS-TMO's /api/export/pdf.
+    var C = {
+      navy: [0, 43, 92], darkGrey: [68, 68, 68], black: [0, 0, 0], white: [255, 255, 255],
+      lightGrey: [240, 240, 240], midGrey: [209, 209, 209], altRow: [247, 247, 247]
+    };
+    var TITLE = "F.O.C.U.S.© — RAV4 Maintenance Schedule";
+    var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+    var W = doc.internal.pageSize.getWidth();
+    var H = doc.internal.pageSize.getHeight();
+    var M = 12.7;
+    var now = new Date();
+
+    function onPage() {
+      doc.setTextColor.apply(doc, C.navy);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(TITLE, M, 7);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor.apply(doc, C.darkGrey);
+      doc.text("Jachbit 2026  |  " + now.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }), W - M, 7, { align: "right" });
+      doc.setDrawColor.apply(doc, C.midGrey);
+      doc.setLineWidth(0.18);
+      doc.line(M, 9, W - M, 9);
+
+      doc.line(M, H - 19.05, W - M, H - 19.05);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor.apply(doc, C.darkGrey);
+      doc.text("F.O.C.U.S.©  |  Jachbit 2026  |  For personal vehicle maintenance records only.", W / 2, H - 15.52, { align: "center" });
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor.apply(doc, C.navy);
+      doc.text("Page " + doc.internal.getNumberOfPages(), W - M, H - 15.52, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6);
+      doc.setTextColor.apply(doc, C.black);
+      doc.text("John 3:16   |   1 John 3:16   |   Matt 6:33   |   Jer 33:3   |   Prov 3:5-6   |   Prov 27:17", W / 2, H - 11.64, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(5.5);
+      doc.setTextColor.apply(doc, C.darkGrey);
+      doc.text("© 2026 Jachbit. All rights reserved. May not be copied or shared without express written consent of the publisher.  |  linktr.ee/jachbit", W / 2, H - 7.76, { align: "center" });
+    }
+
+    // Masthead/footer come from autoTable's didDrawPage, which also fires for page 1.
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor.apply(doc, C.navy);
+    doc.text(TITLE, W / 2, 20, { align: "center" });
+    doc.setFontSize(11);
+    doc.text((state.title || "").replace(/\s+/g, " ").trim(), W / 2, 26, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor.apply(doc, C.darkGrey);
+    doc.text(
+      "Jachbit 2026  ·  " + now.toLocaleString(undefined, { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }) +
+      "  ·  " + state.rows.length + (state.rows.length === 1 ? " row" : " rows") +
+      "  ·  RAV4 log " + dateRange() + (state.sheetDate ? "  ·  sheet date " + state.sheetDate : ""),
+      W / 2, 31, { align: "center" }
+    );
+    doc.setDrawColor.apply(doc, C.midGrey);
+    doc.setLineWidth(0.18);
+    doc.line(M, 34, W - M, 34);
+
+    var colStyles = { 0: { halign: "center", cellWidth: 10 } };
+    state.columns.forEach(function (c, i) {
+      var s = { halign: "center" };
+      if (c.type === "date") s.cellWidth = 24;
+      if (c.type === "day") s.cellWidth = 14;
+      if (c.type === "time") s.cellWidth = 22;
+      if (c.type === "hours") s.cellWidth = 16;
+      if (c.type === "notes" || c.type === "text") s.halign = "left";
+      colStyles[i + 1] = s;
+    });
+
+    doc.autoTable({
+      startY: 38,
+      head: [["#"].concat(state.columns.map(function (c) { return c.label; }))],
+      body: state.rows.map(function (r, i) {
+        return [i + 1].concat(state.columns.map(function (c) { return displayValue(r, c, true); }));
+      }),
+      styles: { fontSize: 9, cellPadding: 3, textColor: C.black, fillColor: C.white, lineColor: C.midGrey, lineWidth: 0.2, valign: "middle" },
+      headStyles: { fillColor: C.lightGrey, textColor: C.navy, fontStyle: "bold", halign: "center", lineColor: C.midGrey, lineWidth: 0.3 },
+      alternateRowStyles: { fillColor: C.altRow },
+      columnStyles: colStyles,
+      margin: { left: M, right: M, top: 14, bottom: 24 },
+      didDrawPage: onPage
+    });
+
+    var total = state.rows.reduce(function (s, r) { return s + (hoursOf(r) || 0); }, 0);
+    if (colByKey("hours")) {
+      var y = doc.lastAutoTable.finalY + 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor.apply(doc, C.navy);
+      doc.text("TOTAL LOGGED HOURS:  " + total.toFixed(2), W - M, y, { align: "right" });
+    }
+
+    doc.save("FOCUS_RAV4_SCHEDULE_" + timestamp() + ".pdf");
+  }
+
+  // ---------- Header clock ----------
+  document.getElementById("hdrDate").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  var hdrTimeEl = document.getElementById("hdrTime");
+  function tickClock() { hdrTimeEl.textContent = new Date().toLocaleTimeString(undefined, { hour12: true }); }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // Open the calendar on the most recent entry's month so existing data is visible.
+  var lastIso = state.rows.map(function (r) { return cell(r, "date"); }).filter(Boolean).sort().pop();
+  var startD = parseIso(lastIso) || new Date();
+  calCursor = new Date(startD.getFullYear(), startD.getMonth(), 1);
+
+  render();
+})();
+</script>
+</body>
+</html>
