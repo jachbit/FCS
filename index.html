@@ -103,6 +103,7 @@
     padding: 7px 8px; font-size: 14px; color: var(--text); font-family: inherit;
   }
   input[type="date"] { min-width: 122px; }
+  input[type="month"] { color-scheme: dark; }
   input[type="time"] { min-width: 108px; }
   input[type="date"], input[type="time"] { color-scheme: dark; font-variant-numeric: tabular-nums; }
   input[type="number"] { min-width: 80px; }
@@ -191,6 +192,9 @@
         <div><div class="stat-k">Last entry</div><div class="stat-v" id="statLast" style="font-size:14px">—</div></div>
         <div><div class="stat-k">Days since</div><div class="stat-v" id="statSince">—</div></div>
       </div>
+      <div style="padding:0 14px 14px">
+        <button class="tb-btn accent" id="blankCalBtn" style="width:100%;justify-content:center">&#128197; Blank Calendar PDF</button>
+      </div>
     </aside>
 
     <main class="card">
@@ -220,6 +224,27 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <div class="modal-bg" id="calModal">
+    <div class="modal">
+      <div class="card-title">Blank calendar PDF</div>
+      <div class="modal-body">
+        <label>Layout
+          <select id="blankType">
+            <option value="month">Monthly (1 month per page)</option>
+            <option value="week">Weekly (1 week per page)</option>
+          </select>
+        </label>
+        <label id="blankMonthWrap">Start month<input type="month" id="blankMonth" /></label>
+        <label id="blankWeekWrap" style="display:none">Week containing<input type="date" id="blankWeek" /></label>
+        <label>How many pages<input type="number" id="blankCount" min="1" max="52" value="1" /></label>
+      </div>
+      <div class="modal-actions">
+        <button class="tb-btn" id="blankCancel">Cancel</button>
+        <button class="tb-btn accent" id="blankGo">Create PDF</button>
+      </div>
+    </div>
   </div>
 
   <div class="modal-bg" id="colModal">
@@ -742,14 +767,15 @@
     }
   });
 
-  function buildAndSavePdf() {
+  // Shared F.O.C.U.S. page frame (masthead + 3-line footer) for every PDF this page makes.
+  function pdfFrame(orientation) {
     // Colors + layout copied from FOCUS Shopping List, which matches FOCUS-TMO's /api/export/pdf.
     var C = {
       navy: [0, 43, 92], darkGrey: [68, 68, 68], black: [0, 0, 0], white: [255, 255, 255],
       lightGrey: [240, 240, 240], midGrey: [209, 209, 209], altRow: [247, 247, 247]
     };
     var TITLE = "F.O.C.U.S.© — " + headerName();
-    var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+    var doc = new window.jspdf.jsPDF({ orientation: orientation, unit: "mm", format: "letter" });
     var W = doc.internal.pageSize.getWidth();
     var H = doc.internal.pageSize.getHeight();
     var M = 12.7;
@@ -785,6 +811,13 @@
       doc.setTextColor.apply(doc, C.darkGrey);
       doc.text("© 2026 Jachbit. All rights reserved. May not be copied or shared without express written consent of the publisher.  |  linktr.ee/jachbit", W / 2, H - 7.76, { align: "center" });
     }
+
+    return { doc: doc, C: C, TITLE: TITLE, W: W, H: H, M: M, now: now, onPage: onPage };
+  }
+
+  function buildAndSavePdf() {
+    var F = pdfFrame("landscape");
+    var doc = F.doc, C = F.C, TITLE = F.TITLE, W = F.W, M = F.M, now = F.now, onPage = F.onPage;
 
     // Masthead/footer come from autoTable's didDrawPage, which also fires for page 1.
     doc.setFont("helvetica", "bold");
@@ -841,6 +874,148 @@
     }
 
     doc.save("FOCUS_CAR_SCHEDULE_" + timestamp() + ".pdf");
+  }
+
+  // ---------- Blank calendar PDF ----------
+  var calModal = document.getElementById("calModal");
+  var blankType = document.getElementById("blankType");
+  function syncBlankType() {
+    var wk = blankType.value === "week";
+    document.getElementById("blankMonthWrap").style.display = wk ? "none" : "";
+    document.getElementById("blankWeekWrap").style.display = wk ? "" : "none";
+  }
+  blankType.addEventListener("change", syncBlankType);
+  document.getElementById("blankCalBtn").addEventListener("click", function () {
+    document.getElementById("blankMonth").value = calCursor.getFullYear() + "-" + pad(calCursor.getMonth() + 1);
+    document.getElementById("blankWeek").value = selectedDate || isoOf(new Date());
+    syncBlankType();
+    calModal.classList.add("open");
+  });
+  document.getElementById("blankCancel").addEventListener("click", function () { calModal.classList.remove("open"); });
+  calModal.addEventListener("click", function (e) { if (e.target === calModal) calModal.classList.remove("open"); });
+  document.getElementById("blankGo").addEventListener("click", function () {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert("Could not load the PDF library (lib/jspdf.umd.min.js). Make sure the \"lib\" folder was uploaded alongside index.html.");
+      return;
+    }
+    var count = Math.min(52, Math.max(1, parseInt(document.getElementById("blankCount").value, 10) || 1));
+    try {
+      if (blankType.value === "week") {
+        var d = parseIso(document.getElementById("blankWeek").value) || new Date();
+        buildBlankWeeks(new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay()), count);
+      } else {
+        var m = /^(\d{4})-(\d{2})$/.exec(document.getElementById("blankMonth").value);
+        buildBlankMonths(m ? new Date(+m[1], +m[2] - 1, 1) : new Date(calCursor), count);
+      }
+      calModal.classList.remove("open");
+    } catch (err) {
+      alert("PDF export failed: " + err.message);
+    }
+  });
+
+  function blankTitleBlock(F, big, subtitle) {
+    var doc = F.doc;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor.apply(doc, F.C.navy);
+    doc.text(big, F.W / 2, 19, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor.apply(doc, F.C.darkGrey);
+    doc.text(subtitle, F.W / 2, 24.5, { align: "center" });
+    doc.setDrawColor.apply(doc, F.C.midGrey);
+    doc.setLineWidth(0.18);
+    doc.line(F.M, 27.5, F.W - F.M, 27.5);
+  }
+  function generatedLine(F, pages, what) {
+    return "Jachbit 2026  ·  " + F.now.toLocaleString(undefined, { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }) +
+      "  ·  " + pages + (pages === 1 ? " page" : " pages") + "  ·  " + what;
+  }
+  function shortDate(d) { return MONTHS[d.getMonth()].slice(0, 3) + " " + d.getDate() + ", " + d.getFullYear(); }
+
+  function buildBlankMonths(first, count) {
+    var F = pdfFrame("landscape"), doc = F.doc, C = F.C, M = F.M;
+    var last = new Date(first.getFullYear(), first.getMonth() + count - 1, 1);
+    var span = MONTHS[first.getMonth()] + " " + first.getFullYear() + (count > 1 ? " to " + MONTHS[last.getMonth()] + " " + last.getFullYear() : "");
+    for (var p = 0; p < count; p++) {
+      if (p) doc.addPage();
+      F.onPage();
+      var mFirst = new Date(first.getFullYear(), first.getMonth() + p, 1);
+      var y0 = mFirst.getFullYear(), m0 = mFirst.getMonth();
+      blankTitleBlock(F, MONTHS[m0] + " " + y0, generatedLine(F, count, "Blank monthly calendar  ·  " + span));
+
+      var lead = mFirst.getDay();
+      var weeks = Math.ceil((lead + new Date(y0, m0 + 1, 0).getDate()) / 7);
+      var top = 31, headH = 7, bottom = F.H - 22;
+      var cw = (F.W - 2 * M) / 7, rh = (bottom - top - headH) / weeks;
+
+      // Day-name strip: light grey + navy text, per the no-solid-accent-fill PDF rule.
+      doc.setFillColor.apply(doc, C.lightGrey);
+      doc.rect(M, top, F.W - 2 * M, headH, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor.apply(doc, C.navy);
+      DOW.forEach(function (n, i) { doc.text(n, M + cw * i + cw / 2, top + 4.8, { align: "center" }); });
+
+      doc.setDrawColor.apply(doc, C.midGrey);
+      doc.setLineWidth(0.3);
+      for (var w = 0; w < weeks; w++) {
+        for (var dc = 0; dc < 7; dc++) {
+          var x = M + cw * dc, y = top + headH + rh * w;
+          doc.rect(x, y, cw, rh, "S");
+          var cellDate = new Date(y0, m0, 1 - lead + w * 7 + dc);
+          var inMonth = cellDate.getMonth() === m0;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(inMonth ? 12 : 9);
+          doc.setTextColor.apply(doc, inMonth ? C.navy : C.midGrey);
+          doc.text(String(cellDate.getDate()), x + 2, y + (inMonth ? 5.5 : 4.5));
+        }
+      }
+      doc.rect(M, top, F.W - 2 * M, headH + rh * weeks, "S");
+    }
+    doc.save("FOCUS_CAR_BLANK_MONTH_" + first.getFullYear() + pad(first.getMonth() + 1) + "_" + timestamp() + ".pdf");
+  }
+
+  function buildBlankWeeks(sunday, count) {
+    var F = pdfFrame("portrait"), doc = F.doc, C = F.C, M = F.M;
+    var lastSat = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + count * 7 - 1);
+    for (var p = 0; p < count; p++) {
+      if (p) doc.addPage();
+      F.onPage();
+      var start = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + p * 7);
+      var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+      blankTitleBlock(F, "Week of " + shortDate(start) + " to " + shortDate(end),
+        generatedLine(F, count, "Blank weekly calendar  ·  " + (count > 1 ? "weeks of " + shortDate(sunday) + " to " + shortDate(lastSat) : "Sun to Sat")));
+
+      var top = 31, bottom = F.H - 22, labelW = 30;
+      var bh = (bottom - top) / 7, lineGap = 7;
+      for (var i = 0; i < 7; i++) {
+        var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        var y = top + bh * i;
+        doc.setDrawColor.apply(doc, C.midGrey);
+        doc.setLineWidth(0.3);
+        doc.rect(M, y, F.W - 2 * M, bh, "S");
+        doc.line(M + labelW, y, M + labelW, y + bh);
+        // Navy left bar instead of a filled label band (ink-saving PDF rule).
+        doc.setDrawColor.apply(doc, C.navy);
+        doc.setLineWidth(1.2);
+        doc.line(M + 0.6, y + 2, M + 0.6, y + bh - 2);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor.apply(doc, C.navy);
+        doc.text(DOW[d.getDay()], M + 4, y + 8);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor.apply(doc, C.darkGrey);
+        doc.text(MONTHS[d.getMonth()].slice(0, 3) + " " + d.getDate(), M + 4, y + 13);
+        doc.setDrawColor.apply(doc, C.midGrey);
+        doc.setLineWidth(0.18);
+        for (var ly = y + lineGap; ly < y + bh - 2; ly += lineGap) {
+          doc.line(M + labelW + 3, ly, F.W - M - 3, ly);
+        }
+      }
+    }
+    doc.save("FOCUS_CAR_BLANK_WEEK_" + isoOf(sunday).replace(/-/g, "") + "_" + timestamp() + ".pdf");
   }
 
   // ---------- Header clock ----------
