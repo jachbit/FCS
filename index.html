@@ -35,7 +35,7 @@
   .hdr-time { font-size: 18px; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .5px; margin-top: 1px; }
   .hdr-date { font-size: 12px; color: #93c5fd; font-weight: 600; }
 
-  .page { max-width: 1200px; margin: 0 auto; padding: 20px 20px 60px; display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  .page { max-width: 1680px; margin: 0 auto; padding: 20px 16px 60px; display: grid; grid-template-columns: 270px 1fr; gap: 16px; align-items: start; }
 
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .card-title { background: var(--navy); color: var(--orange); font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; padding: 10px 14px; border-bottom: 2px solid var(--orange); }
@@ -75,18 +75,18 @@
 
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 760px; }
-  thead th { background: var(--navy); color: #fff; padding: 6px 6px; text-align: left; border-bottom: 2px solid var(--orange); white-space: nowrap; vertical-align: middle; }
+  thead th { background: var(--navy); color: #fff; padding: 6px 4px; text-align: left; border-bottom: 2px solid var(--orange); white-space: nowrap; vertical-align: middle; }
   thead th.num-col { text-align: center; width: 40px; font-size: 12px; }
   thead th.ctl-col { width: 40px; }
   .th-inner { display: flex; align-items: center; gap: 2px; }
   .th-label { font-size: 12px !important; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #fff !important; padding: 5px 6px !important; border-bottom: 1px dashed rgba(255,255,255,0.5) !important; border-radius: 0 !important; cursor: text; }
   .th-label:focus { border-bottom-color: var(--orange) !important; }
-  .col-del { background: transparent; border: none; color: #fff; font-size: 15px; cursor: pointer; padding: 0 4px; line-height: 1; border-radius: 4px; }
+  .col-del { background: transparent; border: none; color: #fff; font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1; border-radius: 4px; }
   .col-del:hover { color: var(--danger); background: rgba(239,68,68,0.15); }
-  .add-col-btn { background: transparent; border: 1.5px dashed #fff; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 800; padding: 5px 8px; cursor: pointer; white-space: nowrap; }
+  .add-col-btn { background: transparent; border: 1.5px dashed #fff; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 800; padding: 5px 6px; cursor: pointer; white-space: nowrap; }
   .add-col-btn:hover { border-style: solid; border-color: var(--orange); color: var(--orange); }
 
-  tbody td { padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
+  tbody td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: top; }
   tbody tr:nth-child(even) { background: var(--row-alt); }
   tbody tr:hover { background: rgba(230,92,0,0.06); }
   tbody tr.flash { animation: flash 1.6s ease-out; }
@@ -100,9 +100,11 @@
     width: 100%; background: transparent; border: 1px solid transparent; border-radius: 5px;
     padding: 7px 8px; font-size: 14px; color: var(--text); font-family: inherit;
   }
-  input[type="date"], input[type="time"] { min-width: 130px; color-scheme: dark; font-variant-numeric: tabular-nums; }
+  input[type="date"] { min-width: 122px; }
+  input[type="time"] { min-width: 108px; }
+  input[type="date"], input[type="time"] { color-scheme: dark; font-variant-numeric: tabular-nums; }
   input[type="number"] { min-width: 80px; }
-  textarea { resize: vertical; min-height: 36px; min-width: 260px; line-height: 1.35; }
+  textarea { resize: vertical; min-height: 36px; min-width: 200px; line-height: 1.35; }
   input:hover, textarea:hover, select:hover { border-color: var(--border); }
   input:focus, textarea:focus, select:focus { outline: none; border-color: var(--orange); background: rgba(255,255,255,0.04); }
   ::placeholder { color: #94a3b8; }
