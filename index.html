@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>F.O.C.U.S.© — RAV4 Maintenance Schedule</title>
+<title>F.O.C.U.S.© — Car Schedule</title>
 <style>
   :root {
     --navy:   #002B5C;
@@ -26,6 +26,10 @@
   .brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 0.5px; }
   .brand sup { color: var(--orange); font-size: 12px; }
   .hdr-subtitle { font-size: 13px; color: var(--white); margin-top: 3px; }
+  .editable { outline: none; border-bottom: 1px dashed transparent; cursor: text; min-width: 3ch; display: inline-block; }
+  .editable:hover { border-bottom-color: #fff; }
+  .editable:focus { border-bottom-color: var(--orange); }
+  .edit-hint { font-size: 12px; font-weight: 700; color: var(--yellow); padding: 0 16px 10px; }
   .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
   .hdr-credit { font-size: 13px; color: var(--orange); font-weight: 700; }
   .hdr-time { font-size: 18px; color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .5px; margin-top: 1px; }
@@ -75,7 +79,8 @@
   thead th.num-col { text-align: center; width: 40px; font-size: 12px; }
   thead th.ctl-col { width: 40px; }
   .th-inner { display: flex; align-items: center; gap: 2px; }
-  .th-label { font-size: 12px !important; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #fff !important; padding: 5px 6px !important; }
+  .th-label { font-size: 12px !important; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #fff !important; padding: 5px 6px !important; border-bottom: 1px dashed rgba(255,255,255,0.5) !important; border-radius: 0 !important; cursor: text; }
+  .th-label:focus { border-bottom-color: var(--orange) !important; }
   .col-del { background: transparent; border: none; color: #fff; font-size: 15px; cursor: pointer; padding: 0 4px; line-height: 1; border-radius: 4px; }
   .col-del:hover { color: var(--danger); background: rgba(239,68,68,0.15); }
   .add-col-btn { background: transparent; border: 1.5px dashed #fff; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 800; padding: 5px 8px; cursor: pointer; white-space: nowrap; }
@@ -153,8 +158,8 @@
 
   <div class="header">
     <div>
-      <div class="brand">F.O.C.U.S.<sup>&copy;</sup> — RAV4 Maintenance Schedule</div>
-      <div class="hdr-subtitle">Useability, engine &amp; battery log — pick dates on the calendar, add rows &amp; columns as needed</div>
+      <div class="brand">F.O.C.U.S.<sup>&copy;</sup> — <span class="editable" id="hdrName" contenteditable="plaintext-only" spellcheck="false" title="Click to rename"></span></div>
+      <div class="hdr-subtitle"><span class="editable" id="hdrSub" contenteditable="plaintext-only" spellcheck="false" title="Click to edit"></span></div>
     </div>
     <div class="header-right">
       <div class="hdr-credit">Jachbit 2026</div>
@@ -189,6 +194,7 @@
         <input class="sheet-title" id="sheetTitle" type="text" placeholder="Schedule title" />
         <label class="sheet-date-wrap">Sheet date <input type="date" id="sheetDate" style="width:auto" /></label>
       </div>
+      <div class="edit-hint" style="padding-top:8px">Tip: click the page header, the title above, or any column name to rename it.</div>
       <div class="table-wrap">
         <table>
           <thead><tr id="headRow"></tr></thead>
@@ -241,7 +247,10 @@
 <script src="lib/jspdf.plugin.autotable.min.js"></script>
 <script>
 (function () {
-  var STORAGE_KEY = "focus-rav4-schedule-v1";
+  var STORAGE_KEY = "focus-car-schedule-v1";
+  var OLD_STORAGE_KEY = "focus-rav4-schedule-v1";
+  var DEFAULT_HEADER = "Car Schedule";
+  var DEFAULT_SUB = "Useability, engine & battery log — pick dates on the calendar, add rows & columns as needed";
   var DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -257,6 +266,8 @@
       ["2023-05-09", "07:50", "08:00", "Start Engine early with CHA"]
     ];
     return {
+      headerName: DEFAULT_HEADER,
+      headerSub: DEFAULT_SUB,
       title: "RAV4  Useability, Engine and Battery Maintenance Schedule",
       sheetDate: "2023-05-01",
       nextId: 100,
@@ -280,8 +291,14 @@
 
   function load() {
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      // Carry over data saved before the rename from FOCUS RAV4 Schedule.
+      var raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(OLD_STORAGE_KEY);
+      if (raw) {
+        var s = JSON.parse(raw);
+        if (s.headerName == null) s.headerName = DEFAULT_HEADER;
+        if (s.headerSub == null) s.headerSub = DEFAULT_SUB;
+        return s;
+      }
     } catch (e) {}
     return defaultState();
   }
@@ -336,6 +353,9 @@
   var headRow = document.getElementById("headRow");
   var rowsEl = document.getElementById("rows");
 
+  // Uppercase + letter-spacing renders wider than 1ch per character.
+  function labelWidth(text) { return Math.max(6, Math.ceil(text.length * 1.25) + 3) + "ch"; }
+
   function renderHead() {
     var html = '<th class="num-col">#</th>';
     state.columns.forEach(function (c) {
@@ -350,8 +370,8 @@
     headRow.querySelectorAll("th[data-col]").forEach(function (th) {
       var col = state.columns.filter(function (c) { return c.id === th.getAttribute("data-col"); })[0];
       var lbl = th.querySelector(".th-label");
-      lbl.style.width = Math.max(6, col.label.length + 2) + "ch";
-      lbl.addEventListener("input", function () { col.label = lbl.value; lbl.style.width = Math.max(6, lbl.value.length + 2) + "ch"; save(); });
+      lbl.style.width = labelWidth(col.label);
+      lbl.addEventListener("input", function () { col.label = lbl.value; lbl.style.width = labelWidth(lbl.value); save(); });
       var del = th.querySelector(".col-del");
       if (del) del.addEventListener("click", function () {
         if (!confirm('Remove the "' + col.label + '" column and its data?')) return;
@@ -551,6 +571,21 @@
     save(); render();
   });
 
+  var hdrNameEl = document.getElementById("hdrName");
+  var hdrSubEl = document.getElementById("hdrSub");
+  function headerName() { return (state.headerName || "").trim() || DEFAULT_HEADER; }
+  hdrNameEl.textContent = state.headerName;
+  hdrSubEl.textContent = state.headerSub;
+  document.title = "F.O.C.U.S.© — " + headerName();
+  [[hdrNameEl, "headerName"], [hdrSubEl, "headerSub"]].forEach(function (p) {
+    p[0].addEventListener("input", function () {
+      state[p[1]] = p[0].textContent;
+      document.title = "F.O.C.U.S.© — " + headerName();
+      save();
+    });
+    p[0].addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); p[0].blur(); } });
+  });
+
   var titleEl = document.getElementById("sheetTitle");
   var sheetDateEl = document.getElementById("sheetDate");
   titleEl.value = state.title;
@@ -593,7 +628,7 @@
     var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "FOCUS_RAV4_SCHEDULE_" + timestamp() + ".csv";
+    a.download = "FOCUS_CAR_SCHEDULE_" + timestamp() + ".csv";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
@@ -692,7 +727,7 @@
       navy: [0, 43, 92], darkGrey: [68, 68, 68], black: [0, 0, 0], white: [255, 255, 255],
       lightGrey: [240, 240, 240], midGrey: [209, 209, 209], altRow: [247, 247, 247]
     };
-    var TITLE = "F.O.C.U.S.© — RAV4 Maintenance Schedule";
+    var TITLE = "F.O.C.U.S.© — " + headerName();
     var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
     var W = doc.internal.pageSize.getWidth();
     var H = doc.internal.pageSize.getHeight();
@@ -743,7 +778,7 @@
     doc.text(
       "Jachbit 2026  ·  " + now.toLocaleString(undefined, { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }) +
       "  ·  " + state.rows.length + (state.rows.length === 1 ? " row" : " rows") +
-      "  ·  RAV4 log " + dateRange() + (state.sheetDate ? "  ·  sheet date " + state.sheetDate : ""),
+      "  ·  log " + dateRange() + (state.sheetDate ? "  ·  sheet date " + state.sheetDate : ""),
       W / 2, 31, { align: "center" }
     );
     doc.setDrawColor.apply(doc, C.midGrey);
@@ -784,7 +819,7 @@
       doc.text("TOTAL LOGGED HOURS:  " + total.toFixed(2), W - M, y, { align: "right" });
     }
 
-    doc.save("FOCUS_RAV4_SCHEDULE_" + timestamp() + ".pdf");
+    doc.save("FOCUS_CAR_SCHEDULE_" + timestamp() + ".pdf");
   }
 
   // ---------- Header clock ----------
