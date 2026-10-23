@@ -230,6 +230,7 @@
     <div class="modal">
       <div class="card-title">Blank calendar PDF</div>
       <div class="modal-body">
+        <label>Calendar title<input type="text" id="blankTitle" placeholder="e.g. Family Calendar" /></label>
         <label>Layout
           <select id="blankType">
             <option value="month">Monthly (1 month per page)</option>
@@ -768,13 +769,15 @@
   });
 
   // Shared F.O.C.U.S. page frame (masthead + 3-line footer) for every PDF this page makes.
-  function pdfFrame(orientation) {
+  // opts.title / opts.note let the blank calendars carry a non-car title and footer.
+  function pdfFrame(orientation, opts) {
+    opts = opts || {};
     // Colors + layout copied from FOCUS Shopping List, which matches FOCUS-TMO's /api/export/pdf.
     var C = {
       navy: [0, 43, 92], darkGrey: [68, 68, 68], black: [0, 0, 0], white: [255, 255, 255],
       lightGrey: [240, 240, 240], midGrey: [209, 209, 209], altRow: [247, 247, 247]
     };
-    var TITLE = "F.O.C.U.S.© — " + headerName();
+    var TITLE = "F.O.C.U.S.© — " + (opts.title || headerName());
     var doc = new window.jspdf.jsPDF({ orientation: orientation, unit: "mm", format: "letter" });
     var W = doc.internal.pageSize.getWidth();
     var H = doc.internal.pageSize.getHeight();
@@ -798,7 +801,7 @@
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       doc.setTextColor.apply(doc, C.darkGrey);
-      doc.text("F.O.C.U.S.©  |  Jachbit 2026  |  For personal vehicle maintenance records only.", W / 2, H - 15.52, { align: "center" });
+      doc.text("F.O.C.U.S.©  |  Jachbit 2026  |  " + (opts.note || "For personal vehicle maintenance records only."), W / 2, H - 15.52, { align: "center" });
       doc.setFont("helvetica", "bold");
       doc.setTextColor.apply(doc, C.navy);
       doc.text("Page " + doc.internal.getNumberOfPages(), W - M, H - 15.52, { align: "right" });
@@ -888,6 +891,7 @@
   document.getElementById("blankCalBtn").addEventListener("click", function () {
     document.getElementById("blankMonth").value = calCursor.getFullYear() + "-" + pad(calCursor.getMonth() + 1);
     document.getElementById("blankWeek").value = selectedDate || isoOf(new Date());
+    document.getElementById("blankTitle").value = state.blankTitle || headerName();
     syncBlankType();
     calModal.classList.add("open");
   });
@@ -899,13 +903,16 @@
       return;
     }
     var count = Math.min(52, Math.max(1, parseInt(document.getElementById("blankCount").value, 10) || 1));
+    var title = document.getElementById("blankTitle").value.replace(/\s+/g, " ").trim() || headerName();
+    state.blankTitle = title;
+    save();
     try {
       if (blankType.value === "week") {
         var d = parseIso(document.getElementById("blankWeek").value) || new Date();
-        buildBlankWeeks(new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay()), count);
+        buildBlankWeeks(new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay()), count, title);
       } else {
         var m = /^(\d{4})-(\d{2})$/.exec(document.getElementById("blankMonth").value);
-        buildBlankMonths(m ? new Date(+m[1], +m[2] - 1, 1) : new Date(calCursor), count);
+        buildBlankMonths(m ? new Date(+m[1], +m[2] - 1, 1) : new Date(calCursor), count, title);
       }
       calModal.classList.remove("open");
     } catch (err) {
@@ -933,8 +940,8 @@
   }
   function shortDate(d) { return MONTHS[d.getMonth()].slice(0, 3) + " " + d.getDate() + ", " + d.getFullYear(); }
 
-  function buildBlankMonths(first, count) {
-    var F = pdfFrame("landscape"), doc = F.doc, C = F.C, M = F.M;
+  function buildBlankMonths(first, count, title) {
+    var F = pdfFrame("landscape", { title: title, note: "For personal records only." }), doc = F.doc, C = F.C, M = F.M;
     var last = new Date(first.getFullYear(), first.getMonth() + count - 1, 1);
     var span = MONTHS[first.getMonth()] + " " + first.getFullYear() + (count > 1 ? " to " + MONTHS[last.getMonth()] + " " + last.getFullYear() : "");
     for (var p = 0; p < count; p++) {
@@ -942,7 +949,7 @@
       F.onPage();
       var mFirst = new Date(first.getFullYear(), first.getMonth() + p, 1);
       var y0 = mFirst.getFullYear(), m0 = mFirst.getMonth();
-      blankTitleBlock(F, MONTHS[m0] + " " + y0, generatedLine(F, count, "Blank monthly calendar  ·  " + span));
+      blankTitleBlock(F, MONTHS[m0] + " " + y0, generatedLine(F, count, title + "  ·  Blank monthly calendar  ·  " + span));
 
       var lead = mFirst.getDay();
       var weeks = Math.ceil((lead + new Date(y0, m0 + 1, 0).getDate()) / 7);
@@ -976,8 +983,8 @@
     doc.save("FOCUS_CAR_BLANK_MONTH_" + first.getFullYear() + pad(first.getMonth() + 1) + "_" + timestamp() + ".pdf");
   }
 
-  function buildBlankWeeks(sunday, count) {
-    var F = pdfFrame("portrait"), doc = F.doc, C = F.C, M = F.M;
+  function buildBlankWeeks(sunday, count, title) {
+    var F = pdfFrame("portrait", { title: title, note: "For personal records only." }), doc = F.doc, C = F.C, M = F.M;
     var lastSat = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + count * 7 - 1);
     for (var p = 0; p < count; p++) {
       if (p) doc.addPage();
@@ -985,7 +992,7 @@
       var start = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + p * 7);
       var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
       blankTitleBlock(F, "Week of " + shortDate(start) + " to " + shortDate(end),
-        generatedLine(F, count, "Blank weekly calendar  ·  " + (count > 1 ? "weeks of " + shortDate(sunday) + " to " + shortDate(lastSat) : "Sun to Sat")));
+        generatedLine(F, count, title + "  ·  Blank weekly calendar  ·  " + (count > 1 ? "weeks of " + shortDate(sunday) + " to " + shortDate(lastSat) : "Sun to Sat")));
 
       var top = 31, bottom = F.H - 22, labelW = 30;
       var bh = (bottom - top) / 7, lineGap = 7;
