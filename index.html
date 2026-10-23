@@ -83,6 +83,8 @@
   .th-label:focus { border-bottom-color: var(--orange) !important; }
   .col-del { background: transparent; border: none; color: #fff; font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1; border-radius: 4px; }
   .col-del:hover { color: var(--danger); background: rgba(239,68,68,0.15); }
+  .col-sort { background: transparent; border: 1px solid #fff; color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; padding: 2px 5px; line-height: 1; border-radius: 4px; }
+  .col-sort:hover { border-color: var(--orange); color: var(--orange); }
   .add-col-btn { background: transparent; border: 1.5px dashed #fff; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 800; padding: 5px 6px; cursor: pointer; white-space: nowrap; }
   .add-col-btn:hover { border-style: solid; border-color: var(--orange); color: var(--orange); }
 
@@ -363,7 +365,9 @@
     state.columns.forEach(function (c) {
       html += '<th data-col="' + c.id + '"><div class="th-inner">' +
         '<input class="th-label" type="text" value="' + escapeHtml(c.label) + '" title="Click to rename column" />' +
-        (c.key === "date" ? "" : '<button class="col-del" title="Remove column">&times;</button>') +
+        (c.key === "date"
+          ? '<button class="col-sort" id="dateSortBtn" title="Sort by date">' + (state.sortDir === "desc" ? "&#9660;" : "&#9650;") + '</button>'
+          : '<button class="col-del" title="Remove column">&times;</button>') +
         '</div></th>';
     });
     html += '<th class="ctl-col"><button class="add-col-btn" id="addColBtn" title="Add a column">+ Col</button></th>';
@@ -383,6 +387,7 @@
       });
     });
     document.getElementById("addColBtn").addEventListener("click", openColModal);
+    document.getElementById("dateSortBtn").addEventListener("click", toggleSort);
   }
 
   function buildCell(row, col) {
@@ -446,7 +451,7 @@
     var r = { id: newId("r"), cells: {} };
     var dc = colByKey("date");
     if (dc) r.cells[dc.id] = iso;
-    state.rows.push(r);
+    if (state.sortDir === "desc") state.rows.unshift(r); else state.rows.push(r);
     save(); render();
     focusRow(r.id);
   }
@@ -560,13 +565,27 @@
 
   // ---------- Toolbar ----------
   document.getElementById("addBtn").addEventListener("click", function () { addRow(isoOf(new Date())); });
-  document.getElementById("sortBtn").addEventListener("click", function () {
+  // Rows without a date always sink to the bottom, whichever direction is chosen.
+  function sortRows(dir) {
+    var sign = dir === "desc" ? -1 : 1;
     state.rows.sort(function (a, b) {
-      var da = cell(a, "date") || "9999", db = cell(b, "date") || "9999";
-      return da < db ? -1 : da > db ? 1 : (cell(a, "start") < cell(b, "start") ? -1 : 1);
+      var da = cell(a, "date"), db = cell(b, "date");
+      if (!da || !db) return !da && !db ? 0 : !da ? 1 : -1;
+      var ka = da + " " + cell(a, "start"), kb = db + " " + cell(b, "start");
+      return ka < kb ? -sign : ka > kb ? sign : 0;
     });
-    save(); renderRows();
-  });
+    state.sortDir = dir;
+    save();
+    renderHead();
+    renderRows();
+    updateSortBtn();
+  }
+  function toggleSort() { sortRows(state.sortDir === "desc" ? "asc" : "desc"); }
+  function updateSortBtn() {
+    document.getElementById("sortBtn").innerHTML = state.sortDir === "desc" ? "Newest first &#9660;" : state.sortDir === "asc" ? "Oldest first &#9650;" : "Sort by date";
+  }
+  document.getElementById("sortBtn").addEventListener("click", toggleSort);
+  updateSortBtn();
   document.getElementById("clearBtn").addEventListener("click", function () {
     if (state.rows.length && !confirm("Clear all rows? (Columns and title are kept.)")) return;
     state.rows = [];
